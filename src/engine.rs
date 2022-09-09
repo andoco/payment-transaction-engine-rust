@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use log::{error, info};
 
 use anyhow::anyhow;
@@ -9,11 +11,15 @@ use crate::{
 
 pub struct Engine<A: account::Manager> {
     accounts: A,
+    transactions: HashMap<u32, Transaction>,
 }
 
 impl<A: account::Manager> Engine<A> {
     pub fn new(accounts: A) -> Self {
-        Self { accounts }
+        Self {
+            accounts,
+            transactions: HashMap::new(),
+        }
     }
 
     fn process(&mut self, tx: &Transaction) -> anyhow::Result<()> {
@@ -25,11 +31,64 @@ impl<A: account::Manager> Engine<A> {
         match tx.tx_type.as_str() {
             "deposit" => {
                 info!("Depositing amount for client id {}", tx.client_id);
+                self.transactions.insert(tx.tx_id, tx.clone());
                 self.accounts.deposit(tx.client_id, tx.amount)
             }
             "withdrawal" => {
                 info!("Withdrawing amount for client id {}", tx.client_id);
+                self.transactions.insert(tx.tx_id, tx.clone());
                 self.accounts.withdraw(tx.client_id, tx.amount)
+            }
+            "dispute" => {
+                info!(
+                    "Disputing transaction {} for client id {}",
+                    tx.tx_id, tx.client_id
+                );
+
+                match self.transactions.get(&tx.tx_id) {
+                    Some(tx) => self.accounts.hold(tx.client_id, tx.amount),
+                    None => {
+                        info!(
+                            "Disputed transaction {} not found so will ignore for client id {}",
+                            tx.tx_id, tx.client_id
+                        );
+                        Ok(())
+                    }
+                }
+            }
+            "resolve" => {
+                info!(
+                    "Resolving transaction {} for client id {}",
+                    tx.tx_id, tx.client_id
+                );
+
+                match self.transactions.get(&tx.tx_id) {
+                    Some(tx) => self.accounts.release(tx.client_id, tx.amount),
+                    None => {
+                        info!(
+                            "Resolved transaction {} not found so will ignore for client id {}",
+                            tx.tx_id, tx.client_id
+                        );
+                        Ok(())
+                    }
+                }
+            }
+            "chargeback" => {
+                info!(
+                    "Chargeback transaction {} for client id {}",
+                    tx.tx_id, tx.client_id
+                );
+
+                match self.transactions.get(&tx.tx_id) {
+                    Some(tx) => self.accounts.withdraw_held(tx.client_id, tx.amount),
+                    None => {
+                        info!(
+                            "Chargeback transaction {} not found so will ignore for client id {}",
+                            tx.tx_id, tx.client_id
+                        );
+                        Ok(())
+                    }
+                }
             }
             _ => Err(anyhow!("Unsupported transaction type")),
         }
@@ -54,5 +113,103 @@ impl<A: account::Manager> Engine<A> {
 
     pub fn get_accounts(&self) -> Vec<&Account> {
         self.accounts.all()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deposit_and_withdrawal_integration_test() {
+        let accounts = account::SimpleManager::new();
+        let mut engine = Engine::new(accounts);
+
+        let txs = vec![
+            Ok(Transaction::new("deposit", 1, 1, 10.0)),
+            Ok(Transaction::new("withdrawal", 1, 2, 3.0)),
+        ];
+
+        engine.process_all(txs);
+
+        let accounts = engine.get_accounts();
+
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts[0].client_id, 1);
+        assert_eq!(accounts[0].available_amount, 7.0);
+    }
+
+    #[test]
+    fn dispute_integration_test() {
+        let accounts = account::SimpleManager::new();
+        let mut engine = Engine::new(accounts);
+
+        let txs = vec![
+            Ok(Transaction::new("deposit", 1, 1, 10.0)),
+            Ok(Transaction::new("deposit", 1, 2, 5.0)),
+            Ok(Transaction::new("dispute", 1, 1, 0.0)),
+        ];
+
+        engine.process_all(txs);
+
+        let accounts = engine.get_accounts();
+
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts[0].client_id, 1);
+        assert_eq!(accounts[0].available_amount, 5.0);
+        assert_eq!(accounts[0].held_amount, 10.0);
+    }
+
+    #[test]
+    fn chargeback_integration_test() {
+        let accounts = account::SimpleManager::new();
+        let mut engine = Engine::new(accounts);
+
+        let txs = vec![
+            Ok(Transaction::new("deposit", 1, 1, 10.0)),
+            Ok(Transaction::new("deposit", 1, 2, 5.0)),
+            Ok(Transaction::new("dispute", 1, 1, 0.0)),
+            Ok(Transaction::new("chargeback", 1, 1, 0.0)),
+        ];
+
+        engine.process_all(txs);
+
+        let accounts = engine.get_accounts();
+
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts[0].client_id, 1);
+        assert_eq!(accounts[0].available_amount, 5.0);
+        assert_eq!(accounts[0].held_amount, 0.0);
+    }
+
+    #[test]
+    fn complex_integration_test() {
+        let accounts = account::SimpleManager::new();
+        let mut engine = Engine::new(accounts);
+
+        let txs = vec![
+            Ok(Transaction::new("deposit", 1, 1, 10.0)),
+            Ok(Transaction::new("deposit", 2, 2, 10.0)),
+            Ok(Transaction::new("deposit", 1, 3, 5.0)),
+            Ok(Transaction::new("dispute", 1, 1, 0.0)),
+            Ok(Transaction::new("withdrawal", 2, 4, 3.0)),
+            Ok(Transaction::new("chargeback", 1, 1, 0.0)),
+        ];
+
+        engine.process_all(txs);
+
+        let accounts = engine.get_accounts();
+        assert_eq!(accounts.len(), 2);
+
+        let acc1 = accounts.iter().find(|a| a.client_id == 1).unwrap();
+        let acc2 = accounts.iter().find(|a| a.client_id == 2).unwrap();
+
+        assert_eq!(acc1.client_id, 1);
+        assert_eq!(acc1.available_amount, 5.0);
+        assert_eq!(acc1.held_amount, 0.0);
+
+        assert_eq!(acc2.client_id, 2);
+        assert_eq!(acc2.available_amount, 7.0);
+        assert_eq!(acc2.held_amount, 0.0);
     }
 }
