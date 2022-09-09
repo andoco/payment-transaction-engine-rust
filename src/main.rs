@@ -7,6 +7,7 @@ use std::env;
 
 use anyhow::anyhow;
 use log::info;
+use types::Account;
 
 use crate::{engine::Engine, reader::CsvTxReader};
 
@@ -29,6 +30,8 @@ fn main() -> anyhow::Result<()> {
     let mut engine = Engine::new(accounts);
     engine.process_all(tx_reader);
 
+    print_accounts(engine.get_accounts());
+
     Ok(())
 }
 
@@ -43,6 +46,20 @@ fn parse_args(args: Vec<String>) -> anyhow::Result<Args> {
             transactions_file: tx_file.to_string(),
         }),
         None => Err(anyhow!("No transaction file provided")),
+    }
+}
+
+fn print_accounts(accounts: Vec<&Account>) {
+    println!("client, available, held, total, locked");
+    for acc in accounts {
+        println!(
+            "{}, {}, {}, {}, {}",
+            acc.client_id,
+            acc.available_amount,
+            acc.held_amount,
+            acc.available_amount + acc.held_amount,
+            false
+        );
     }
 }
 

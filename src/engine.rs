@@ -2,7 +2,10 @@ use log::{error, info};
 
 use anyhow::anyhow;
 
-use crate::{account, types::Transaction};
+use crate::{
+    account,
+    types::{Account, Transaction},
+};
 
 pub struct Engine<A: account::Manager> {
     accounts: A,
@@ -47,5 +50,9 @@ impl<A: account::Manager> Engine<A> {
                 Err(err) => error!("Encountered corrupt transaction: {}", err),
             }
         }
+    }
+
+    pub fn get_accounts(&self) -> Vec<&Account> {
+        self.accounts.all()
     }
 }
