@@ -17,10 +17,23 @@ impl<A: account::Manager> Engine<A> {
             .ensure_account(tx.client_id)
             .expect("Failed to ensure account exists");
 
-        info!("Depositing amount for client id {}", tx.client_id);
-        self.accounts
-            .deposit(tx.client_id, tx.amount)
-            .expect("Failed to deposit to account");
+        match tx.tx_type.as_str() {
+            "deposit" => {
+                info!("Depositing amount for client id {}", tx.client_id);
+                self.accounts
+                    .deposit(tx.client_id, tx.amount)
+                    .expect("Failed to deposit to account");
+            }
+            "withdrawal" => {
+                info!("Withdrawing amount for client id {}", tx.client_id);
+                self.accounts
+                    .withdraw(tx.client_id, tx.amount)
+                    .expect("Failed to withdraw from account");
+            }
+            _ => {
+                panic!("Unsupported transaction type");
+            }
+        }
     }
 
     pub fn process_all(
