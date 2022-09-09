@@ -24,9 +24,7 @@ impl<A: account::Manager> Engine<A> {
 
     fn process(&mut self, tx: &Transaction) -> anyhow::Result<()> {
         info!("Ensuring account exists for client id {}", tx.client_id);
-        self.accounts
-            .ensure_account(tx.client_id)
-            .expect("Failed to ensure account exists");
+        self.accounts.ensure_account(tx.client_id)?;
 
         match tx.tx_type.as_str() {
             "deposit" => {
