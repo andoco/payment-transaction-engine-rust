@@ -12,6 +12,8 @@ pub trait Manager {
     fn withdraw(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
 
     fn hold(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+
+    fn release(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
 }
 
 pub struct SimpleManager {
@@ -68,6 +70,21 @@ impl Manager for SimpleManager {
 
                 acc.available_amount -= amount;
                 acc.held_amount += amount;
+                Ok(())
+            }
+            None => Err(anyhow!("Account for client {} not found", client_id)),
+        }
+    }
+
+    fn release(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()> {
+        match self.accounts.get_mut(&client_id) {
+            Some(acc) => {
+                if acc.held_amount - amount < 0.0 {
+                    return Err(anyhow!("Held amount is too low"));
+                }
+
+                acc.held_amount -= amount;
+                acc.available_amount += amount;
                 Ok(())
             }
             None => Err(anyhow!("Account for client {} not found", client_id)),
@@ -182,5 +199,35 @@ mod tests {
         let client_id = 1;
         assert!(manager.ensure_account(client_id).is_ok());
         assert!(manager.hold(1, 1.0).is_err());
+    }
+
+    #[test]
+    fn release_returns_error_when_account_not_found() {
+        let mut manager = SimpleManager::new();
+        let result = manager.release(1, 1.0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn release_moves_amount_from_held_amount_to_available_amount() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.deposit(client_id, 10.0).is_ok());
+        assert!(manager.hold(client_id, 1.0).is_ok());
+        assert!(manager.release(client_id, 1.0).is_ok());
+
+        let acc = manager.accounts.get(&client_id).expect("Account not found");
+        assert_eq!(acc.available_amount, 10.0);
+        assert_eq!(acc.held_amount, 0.0);
+    }
+
+    #[test]
+    fn release_returns_error_when_amount_greater_than_held_amount() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.release(client_id, 1.0).is_err());
     }
 }
