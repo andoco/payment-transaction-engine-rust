@@ -8,6 +8,8 @@ pub trait Manager {
     fn ensure_account(&mut self, client_id: u16) -> anyhow::Result<()>;
 
     fn deposit(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+
+    fn withdraw(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
 }
 
 pub struct SimpleManager {
@@ -36,6 +38,20 @@ impl Manager for SimpleManager {
             Some(acc) => {
                 acc.available_amount += amount;
                 Ok(())
+            }
+            None => Err(anyhow!("Account for client {} not found", client_id)),
+        }
+    }
+
+    fn withdraw(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()> {
+        match self.accounts.get_mut(&client_id) {
+            Some(acc) => {
+                if acc.available_amount - amount < 0.0 {
+                    return Err(anyhow!("Available amount is too low"));
+                }
+
+                acc.available_amount -= amount;
+                return Ok(());
             }
             None => Err(anyhow!("Account for client {} not found", client_id)),
         }
@@ -85,5 +101,40 @@ mod tests {
         assert_eq!(acc.is_locked, false);
         assert_eq!(acc.available_amount, tx.amount);
         assert_eq!(acc.held_amount, 0.0);
+    }
+
+    #[test]
+    fn withdraw_returns_error_when_account_not_found() {
+        let mut manager = SimpleManager::new();
+        let result = manager.withdraw(1, 10.0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn withdraw_substracts_from_available_amount() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.deposit(client_id, 10.0).is_ok());
+        assert!(manager.withdraw(client_id, 1.0).is_ok());
+
+        let acc = manager.accounts.get(&client_id).expect("Account not found");
+
+        assert_eq!(acc.available_amount, 9.0);
+    }
+
+    #[test]
+    fn withdraw_returns_error_when_amount_greater_than_available_amount() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.deposit(client_id, 10.0).is_ok());
+        assert!(manager.withdraw(client_id, 11.0).is_err());
+
+        let acc = manager.accounts.get(&client_id).expect("Account not found");
+
+        assert_eq!(acc.available_amount, 10.0);
     }
 }
