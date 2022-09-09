@@ -25,7 +25,8 @@ fn main() -> anyhow::Result<()> {
 
     let tx_reader = CsvTxReader::new(&mut csv_reader);
 
-    let mut engine = Engine::new();
+    let accounts = account::SimpleManager::new();
+    let mut engine = Engine::new(accounts);
     engine.process_all(tx_reader);
 
     Ok(())
