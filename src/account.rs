@@ -17,6 +17,8 @@ pub trait Manager {
 
     fn release(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
 
+    fn lock(&mut self, client_id: u16) -> anyhow::Result<()>;
+
     fn all(&self) -> Vec<&Account>;
 }
 
@@ -103,6 +105,16 @@ impl Manager for SimpleManager {
 
                 acc.held_amount -= amount;
                 acc.available_amount += amount;
+                Ok(())
+            }
+            None => Err(anyhow!("Account for client {} not found", client_id)),
+        }
+    }
+
+    fn lock(&mut self, client_id: u16) -> anyhow::Result<()> {
+        match self.accounts.get_mut(&client_id) {
+            Some(acc) => {
+                acc.is_locked = true;
                 Ok(())
             }
             None => Err(anyhow!("Account for client {} not found", client_id)),
@@ -290,5 +302,24 @@ mod tests {
 
         assert_eq!(acc.available_amount, 9.0);
         assert_eq!(acc.held_amount, 1.0);
+    }
+
+    #[test]
+    fn lock_returns_error_when_account_not_found() {
+        let mut manager = SimpleManager::new();
+        assert!(manager.lock(1).is_err());
+    }
+
+    #[test]
+    fn lock_locks_account() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.lock(client_id).is_ok());
+
+        let acc = manager.accounts.get(&client_id).expect("Account not found");
+
+        assert!(acc.is_locked);
     }
 }
