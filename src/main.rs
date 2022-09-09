@@ -7,12 +7,25 @@ use std::env;
 use anyhow::anyhow;
 use log::info;
 
+use crate::{engine::Engine, reader::CsvTxReader};
+
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let args = parse_args(env::args().collect())?;
 
     info!("Processing transaction file {}", args.transactions_file);
+
+    let file = std::fs::File::open("transactions.csv").unwrap();
+
+    let mut csv_reader = csv::ReaderBuilder::new()
+        .trim(csv::Trim::All)
+        .from_reader(file);
+
+    let tx_reader = CsvTxReader::new(&mut csv_reader);
+
+    let mut engine = Engine::new();
+    engine.process_all(tx_reader);
 
     Ok(())
 }

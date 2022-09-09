@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::{error, info};
+
 use crate::types::{Account, Transaction};
 
 pub struct Engine {
@@ -13,7 +15,7 @@ impl Engine {
         }
     }
 
-    pub fn process(&mut self, tx: &Transaction) {
+    fn process(&mut self, tx: &Transaction) {
         if !self.accounts.contains_key(&tx.client_id) {
             self.accounts
                 .insert(tx.client_id, Account::new(tx.client_id));
@@ -21,6 +23,22 @@ impl Engine {
 
         if let Some(account) = self.accounts.get_mut(&tx.client_id) {
             account.available_amount += tx.amount;
+        }
+    }
+
+    pub fn process_all(
+        &mut self,
+        transactions: impl IntoIterator<Item = anyhow::Result<Transaction>>,
+    ) {
+        for result in transactions {
+            info!("Processing transaction: {:?}", result);
+
+            match result {
+                Ok(tx) => {
+                    self.process(&tx);
+                }
+                Err(err) => error!("Encountered corrupt transaction: {}", err),
+            }
         }
     }
 }
