@@ -80,7 +80,11 @@ impl<A: account::Manager> Engine<A> {
                 );
 
                 match self.transactions.get(&tx.tx_id) {
-                    Some(tx) => self.accounts.withdraw_held(tx.client_id, tx.amount),
+                    Some(tx) => {
+                        self.accounts.withdraw_held(tx.client_id, tx.amount)?;
+                        self.accounts.lock(tx.client_id)?;
+                        Ok(())
+                    }
                     None => {
                         info!(
                             "Chargeback transaction {} not found so will ignore for client id {}",
@@ -180,6 +184,7 @@ mod tests {
         assert_eq!(accounts[0].client_id, 1);
         assert_eq!(accounts[0].available_amount, 5.0);
         assert_eq!(accounts[0].held_amount, 0.0);
+        assert_eq!(accounts[0].is_locked, true);
     }
 
     #[test]
