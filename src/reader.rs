@@ -29,7 +29,10 @@ impl<'a, R: io::Read> CsvTxReader<'a, R> {
 
     fn next(&mut self) -> Option<anyhow::Result<Transaction>> {
         match self.iter.next() {
-            Some(Ok(record)) => Some(Ok(record.deserialize::<Transaction>(None).unwrap())),
+            Some(Ok(record)) => match record.deserialize::<Transaction>(None) {
+                Ok(tx) => Some(Ok(tx)),
+                Err(err) => Some(Err(anyhow!(err))),
+            },
             Some(Err(err)) => Some(Err(anyhow!(err))),
             None => None,
         }
@@ -55,14 +58,15 @@ mod tests {
 
     #[test]
     fn iterates_rows() {
-        let src = "type, client, tx, amount\ndeposit, 1, 1, 1.0\ndeposit, 2, 2, 2.0";
+        let src =
+            "type, client, tx, amount\ndeposit, 1, 1, 1.0\ndeposit, 2, 2, 2.0\nfoo, foo\nfoo, foo, foo, foo";
         let buf = BufReader::new(src.as_bytes());
         let mut csv_reader = ReaderBuilder::new().trim(Trim::All).from_reader(buf);
         let tx_reader = CsvTxReader::new(&mut csv_reader);
 
         let txs: Vec<_> = tx_reader.into_iter().collect();
 
-        assert_eq!(txs.len(), 2);
+        assert_eq!(txs.len(), 4);
 
         let tx1 = &txs.get(0).unwrap().as_ref().unwrap();
         assert_eq!(tx1.tx_type, "deposit".to_string());
@@ -75,5 +79,11 @@ mod tests {
         assert_eq!(tx2.client_id, 2);
         assert_eq!(tx2.tx_id, 2);
         assert_eq!(tx2.amount, 2.0);
+
+        let tx3 = txs.get(2).unwrap();
+        assert!(tx3.is_err());
+
+        let tx4 = txs.get(3).unwrap();
+        assert!(tx4.is_err());
     }
 }
