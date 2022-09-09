@@ -16,6 +16,8 @@ pub trait Manager {
     fn hold(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
 
     fn release(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+
+    fn all(&self) -> Vec<&Account>;
 }
 
 pub struct SimpleManager {
@@ -105,6 +107,10 @@ impl Manager for SimpleManager {
             }
             None => Err(anyhow!("Account for client {} not found", client_id)),
         }
+    }
+
+    fn all(&self) -> Vec<&Account> {
+        self.accounts.values().collect()
     }
 }
 
