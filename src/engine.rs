@@ -1,5 +1,7 @@
 use log::{error, info};
 
+use anyhow::anyhow;
+
 use crate::{account, types::Transaction};
 
 pub struct Engine<A: account::Manager> {
@@ -11,7 +13,7 @@ impl<A: account::Manager> Engine<A> {
         Self { accounts }
     }
 
-    fn process(&mut self, tx: &Transaction) {
+    fn process(&mut self, tx: &Transaction) -> anyhow::Result<()> {
         info!("Ensuring account exists for client id {}", tx.client_id);
         self.accounts
             .ensure_account(tx.client_id)
@@ -20,19 +22,13 @@ impl<A: account::Manager> Engine<A> {
         match tx.tx_type.as_str() {
             "deposit" => {
                 info!("Depositing amount for client id {}", tx.client_id);
-                self.accounts
-                    .deposit(tx.client_id, tx.amount)
-                    .expect("Failed to deposit to account");
+                self.accounts.deposit(tx.client_id, tx.amount)
             }
             "withdrawal" => {
                 info!("Withdrawing amount for client id {}", tx.client_id);
-                self.accounts
-                    .withdraw(tx.client_id, tx.amount)
-                    .expect("Failed to withdraw from account");
+                self.accounts.withdraw(tx.client_id, tx.amount)
             }
-            _ => {
-                panic!("Unsupported transaction type");
-            }
+            _ => Err(anyhow!("Unsupported transaction type")),
         }
     }
 
@@ -44,9 +40,10 @@ impl<A: account::Manager> Engine<A> {
             info!("Processing transaction: {:?}", result);
 
             match result {
-                Ok(tx) => {
-                    self.process(&tx);
-                }
+                Ok(tx) => match self.process(&tx) {
+                    Ok(()) => info!("Transaction complete"),
+                    Err(err) => error!("Transaction failed: {}", err),
+                },
                 Err(err) => error!("Encountered corrupt transaction: {}", err),
             }
         }
