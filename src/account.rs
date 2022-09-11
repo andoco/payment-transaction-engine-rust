@@ -176,8 +176,6 @@ fn check_positive(amount: Decimal) -> anyhow::Result<()> {
 mod tests {
     use rust_decimal_macros::dec;
 
-    use crate::types::Transaction;
-
     use super::*;
 
     #[test]
@@ -213,20 +211,21 @@ mod tests {
     #[test]
     fn deposit_adds_to_available_amount() {
         let mut manager = SimpleManager::new();
-        let tx = Transaction::new("desposit", 1, 1, dec!(10.0));
+        let client_id = 1;
+        let amount = dec!(10);
 
-        assert!(manager.ensure_account(tx.client_id).is_ok());
+        assert!(manager.ensure_account(client_id).is_ok());
 
-        let result = manager.deposit(tx.client_id, tx.amount);
+        let result = manager.deposit(client_id, amount);
         assert!(result.is_ok(), "expected ok but got {:?}", result);
 
         assert_eq!(manager.accounts.len(), 1);
 
         let acc = manager.accounts.get(&1).expect("Account not found");
 
-        assert_eq!(acc.client_id, tx.client_id);
+        assert_eq!(acc.client_id, client_id);
         assert_eq!(acc.is_locked, false);
-        assert_eq!(acc.available_amount, tx.amount);
+        assert_eq!(acc.available_amount, amount);
         assert_eq!(acc.held_amount, dec!(0.0));
     }
 

@@ -53,6 +53,8 @@ impl<'a, R: io::Read> IntoIterator for CsvTxReader<'a, R> {
 mod tests {
     use std::io::BufReader;
 
+    use crate::types::TxType;
+
     use super::*;
     use csv::{ReaderBuilder, Trim};
     use rust_decimal_macros::dec;
@@ -70,13 +72,13 @@ mod tests {
         assert_eq!(txs.len(), 4);
 
         let tx1 = &txs.get(0).unwrap().as_ref().unwrap();
-        assert_eq!(tx1.tx_type, "deposit".to_string());
+        assert_eq!(tx1.tx_type, TxType::Deposit);
         assert_eq!(tx1.client_id, 1);
         assert_eq!(tx1.tx_id, 1);
         assert_eq!(tx1.amount, dec!(1.0));
 
         let tx2 = &txs.get(1).unwrap().as_ref().unwrap();
-        assert_eq!(tx2.tx_type, "deposit".to_string());
+        assert_eq!(tx2.tx_type, TxType::Deposit);
         assert_eq!(tx2.client_id, 2);
         assert_eq!(tx2.tx_id, 2);
         assert_eq!(tx2.amount, dec!(2.0));

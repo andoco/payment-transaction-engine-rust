@@ -6,7 +6,7 @@ use anyhow::anyhow;
 
 use crate::{
     account,
-    types::{Account, Transaction},
+    types::{Account, Transaction, TxType},
 };
 
 pub struct Engine<A: account::Manager> {
@@ -51,18 +51,18 @@ impl<A: account::Manager> Engine<A> {
             return Ok(());
         }
 
-        match tx.tx_type.as_str() {
-            "deposit" => {
+        match tx.tx_type {
+            TxType::Deposit => {
                 info!("Depositing amount for client id {}", tx.client_id);
                 self.transactions.insert(tx.tx_id, tx.clone());
                 self.accounts.deposit(tx.client_id, tx.amount)
             }
-            "withdrawal" => {
+            TxType::Withdrawal => {
                 info!("Withdrawing amount for client id {}", tx.client_id);
                 self.transactions.insert(tx.tx_id, tx.clone());
                 self.accounts.withdraw(tx.client_id, tx.amount)
             }
-            "dispute" => {
+            TxType::Dispute => {
                 info!(
                     "Disputing transaction {} for client id {}",
                     tx.tx_id, tx.client_id
@@ -79,7 +79,7 @@ impl<A: account::Manager> Engine<A> {
                     }
                 }
             }
-            "resolve" => {
+            TxType::Resolve => {
                 info!(
                     "Resolving transaction {} for client id {}",
                     tx.tx_id, tx.client_id
@@ -96,7 +96,7 @@ impl<A: account::Manager> Engine<A> {
                     }
                 }
             }
-            "chargeback" => {
+            TxType::Chargeback => {
                 info!(
                     "Chargeback transaction {} for client id {}",
                     tx.tx_id, tx.client_id
@@ -117,7 +117,6 @@ impl<A: account::Manager> Engine<A> {
                     }
                 }
             }
-            _ => Err(anyhow!("Unsupported transaction type")),
         }
     }
 
@@ -156,8 +155,8 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
-            Ok(Transaction::new("withdrawal", 1, 2, dec!(3.0))),
+            Ok(Transaction::new(TxType::Deposit, 1, 1, dec!(10.0))),
+            Ok(Transaction::new(TxType::Withdrawal, 1, 2, dec!(3.0))),
         ];
 
         engine.process_all(txs);
@@ -175,9 +174,9 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
-            Ok(Transaction::new("deposit", 1, 2, dec!(5.0))),
-            Ok(Transaction::new("dispute", 1, 1, dec!(0.0))),
+            Ok(Transaction::new(TxType::Deposit, 1, 1, dec!(10.0))),
+            Ok(Transaction::new(TxType::Deposit, 1, 2, dec!(5.0))),
+            Ok(Transaction::new(TxType::Dispute, 1, 1, dec!(0.0))),
         ];
 
         engine.process_all(txs);
@@ -196,11 +195,11 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
-            Ok(Transaction::new("deposit", 1, 2, dec!(5.0))),
-            Ok(Transaction::new("dispute", 1, 1, dec!(0.0))),
-            Ok(Transaction::new("chargeback", 1, 1, dec!(0.0))),
-            Ok(Transaction::new("withdrawal", 1, 3, dec!(1.0))),
+            Ok(Transaction::new(TxType::Deposit, 1, 1, dec!(10.0))),
+            Ok(Transaction::new(TxType::Deposit, 1, 2, dec!(5.0))),
+            Ok(Transaction::new(TxType::Dispute, 1, 1, dec!(0.0))),
+            Ok(Transaction::new(TxType::Chargeback, 1, 1, dec!(0.0))),
+            Ok(Transaction::new(TxType::Withdrawal, 1, 3, dec!(1.0))),
         ];
 
         engine.process_all(txs);
@@ -220,12 +219,12 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
-            Ok(Transaction::new("deposit", 2, 2, dec!(10.0))),
-            Ok(Transaction::new("deposit", 1, 3, dec!(5.0))),
-            Ok(Transaction::new("dispute", 1, 1, dec!(0.0))),
-            Ok(Transaction::new("withdrawal", 2, 4, dec!(3.0))),
-            Ok(Transaction::new("chargeback", 1, 1, dec!(0.0))),
+            Ok(Transaction::new(TxType::Deposit, 1, 1, dec!(10.0))),
+            Ok(Transaction::new(TxType::Deposit, 2, 2, dec!(10.0))),
+            Ok(Transaction::new(TxType::Deposit, 1, 3, dec!(5.0))),
+            Ok(Transaction::new(TxType::Dispute, 1, 1, dec!(0.0))),
+            Ok(Transaction::new(TxType::Withdrawal, 2, 4, dec!(3.0))),
+            Ok(Transaction::new(TxType::Chargeback, 1, 1, dec!(0.0))),
         ];
 
         engine.process_all(txs);

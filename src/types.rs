@@ -1,10 +1,20 @@
 use rust_decimal::Decimal;
 use serde::Deserialize;
 
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TxType {
+    Deposit,
+    Withdrawal,
+    Dispute,
+    Resolve,
+    Chargeback,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Transaction {
     #[serde(rename = "type")]
-    pub tx_type: String,
+    pub tx_type: TxType,
     #[serde(rename = "client")]
     pub client_id: u16,
     #[serde(rename = "tx")]
@@ -13,9 +23,9 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(tx_type: &str, client_id: u16, tx_id: u32, amount: Decimal) -> Self {
+    pub fn new(tx_type: TxType, client_id: u16, tx_id: u32, amount: Decimal) -> Self {
         Self {
-            tx_type: tx_type.to_string(),
+            tx_type,
             client_id,
             tx_id,
             amount,
@@ -48,8 +58,8 @@ mod tests {
 
     #[test]
     fn new_transaction_sets_fields() {
-        let tx = Transaction::new("deposit", 1, 2, dec!(3.0));
-        assert_eq!(tx.tx_type, "deposit".to_string());
+        let tx = Transaction::new(TxType::Deposit, 1, 2, dec!(3.0));
+        assert_eq!(tx.tx_type, TxType::Deposit);
         assert_eq!(tx.client_id, 1);
         assert_eq!(tx.tx_id, 2);
         assert_eq!(tx.amount, dec!(3.0));
