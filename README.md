@@ -1,3 +1,7 @@
+# Description
+
+Simple transaction processing engine.
+
 # Build, Test, and Run
 
 Build:
