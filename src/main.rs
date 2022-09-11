@@ -55,9 +55,9 @@ fn print_accounts(accounts: Vec<&Account>) {
         println!(
             "{}, {}, {}, {}, {}",
             acc.client_id,
-            acc.available_amount,
-            acc.held_amount,
-            acc.available_amount + acc.held_amount,
+            acc.available_amount.round_dp(4),
+            acc.held_amount.round_dp(4),
+            (acc.available_amount + acc.held_amount).round_dp(4),
             false
         );
     }
