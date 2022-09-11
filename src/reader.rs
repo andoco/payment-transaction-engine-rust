@@ -55,6 +55,7 @@ mod tests {
 
     use super::*;
     use csv::{ReaderBuilder, Trim};
+    use rust_decimal_macros::dec;
 
     #[test]
     fn iterates_rows() {
@@ -72,13 +73,13 @@ mod tests {
         assert_eq!(tx1.tx_type, "deposit".to_string());
         assert_eq!(tx1.client_id, 1);
         assert_eq!(tx1.tx_id, 1);
-        assert_eq!(tx1.amount, 1.0);
+        assert_eq!(tx1.amount, dec!(1.0));
 
         let tx2 = &txs.get(1).unwrap().as_ref().unwrap();
         assert_eq!(tx2.tx_type, "deposit".to_string());
         assert_eq!(tx2.client_id, 2);
         assert_eq!(tx2.tx_id, 2);
-        assert_eq!(tx2.amount, 2.0);
+        assert_eq!(tx2.amount, dec!(2.0));
 
         let tx3 = txs.get(2).unwrap();
         assert!(tx3.is_err());

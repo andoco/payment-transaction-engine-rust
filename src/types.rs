@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -8,11 +9,11 @@ pub struct Transaction {
     pub client_id: u16,
     #[serde(rename = "tx")]
     pub tx_id: u32,
-    pub amount: f32,
+    pub amount: Decimal,
 }
 
 impl Transaction {
-    pub fn new(tx_type: &str, client_id: u16, tx_id: u32, amount: f32) -> Self {
+    pub fn new(tx_type: &str, client_id: u16, tx_id: u32, amount: Decimal) -> Self {
         Self {
             tx_type: tx_type.to_string(),
             client_id,
@@ -26,8 +27,8 @@ impl Transaction {
 pub struct Account {
     pub client_id: u16,
     pub is_locked: bool,
-    pub available_amount: f32,
-    pub held_amount: f32,
+    pub available_amount: Decimal,
+    pub held_amount: Decimal,
 }
 
 impl Account {
@@ -41,23 +42,25 @@ impl Account {
 
 #[cfg(test)]
 mod tests {
+    use rust_decimal_macros::dec;
+
     use super::*;
 
     #[test]
     fn new_transaction_sets_fields() {
-        let tx = Transaction::new("deposit", 1, 2, 3.0);
+        let tx = Transaction::new("deposit", 1, 2, dec!(3.0));
         assert_eq!(tx.tx_type, "deposit".to_string());
         assert_eq!(tx.client_id, 1);
         assert_eq!(tx.tx_id, 2);
-        assert_eq!(tx.amount, 3.0);
+        assert_eq!(tx.amount, dec!(3.0));
     }
 
     #[test]
     fn new_account_sets_fields() {
         let acc = Account::new(1);
         assert_eq!(acc.client_id, 1);
-        assert_eq!(acc.available_amount, 0.0);
-        assert_eq!(acc.held_amount, 0.0);
+        assert_eq!(acc.available_amount, dec!(0.0));
+        assert_eq!(acc.held_amount, dec!(0.0));
         assert_eq!(acc.is_locked, false);
     }
 }

@@ -128,6 +128,8 @@ impl<A: account::Manager> Engine<A> {
 
 #[cfg(test)]
 mod tests {
+    use rust_decimal_macros::dec;
+
     use super::*;
 
     #[test]
@@ -136,8 +138,8 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, 10.0)),
-            Ok(Transaction::new("withdrawal", 1, 2, 3.0)),
+            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
+            Ok(Transaction::new("withdrawal", 1, 2, dec!(3.0))),
         ];
 
         engine.process_all(txs);
@@ -146,7 +148,7 @@ mod tests {
 
         assert_eq!(accounts.len(), 1);
         assert_eq!(accounts[0].client_id, 1);
-        assert_eq!(accounts[0].available_amount, 7.0);
+        assert_eq!(accounts[0].available_amount, dec!(7.0));
     }
 
     #[test]
@@ -155,9 +157,9 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, 10.0)),
-            Ok(Transaction::new("deposit", 1, 2, 5.0)),
-            Ok(Transaction::new("dispute", 1, 1, 0.0)),
+            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
+            Ok(Transaction::new("deposit", 1, 2, dec!(5.0))),
+            Ok(Transaction::new("dispute", 1, 1, dec!(0.0))),
         ];
 
         engine.process_all(txs);
@@ -166,8 +168,8 @@ mod tests {
 
         assert_eq!(accounts.len(), 1);
         assert_eq!(accounts[0].client_id, 1);
-        assert_eq!(accounts[0].available_amount, 5.0);
-        assert_eq!(accounts[0].held_amount, 10.0);
+        assert_eq!(accounts[0].available_amount, dec!(5.0));
+        assert_eq!(accounts[0].held_amount, dec!(10.0));
     }
 
     #[test]
@@ -176,11 +178,11 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, 10.0)),
-            Ok(Transaction::new("deposit", 1, 2, 5.0)),
-            Ok(Transaction::new("dispute", 1, 1, 0.0)),
-            Ok(Transaction::new("chargeback", 1, 1, 0.0)),
-            Ok(Transaction::new("withdrawal", 1, 3, 1.0)),
+            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
+            Ok(Transaction::new("deposit", 1, 2, dec!(5.0))),
+            Ok(Transaction::new("dispute", 1, 1, dec!(0.0))),
+            Ok(Transaction::new("chargeback", 1, 1, dec!(0.0))),
+            Ok(Transaction::new("withdrawal", 1, 3, dec!(1.0))),
         ];
 
         engine.process_all(txs);
@@ -189,8 +191,8 @@ mod tests {
 
         assert_eq!(accounts.len(), 1);
         assert_eq!(accounts[0].client_id, 1);
-        assert_eq!(accounts[0].available_amount, 5.0);
-        assert_eq!(accounts[0].held_amount, 0.0);
+        assert_eq!(accounts[0].available_amount, dec!(5.0));
+        assert_eq!(accounts[0].held_amount, dec!(0.0));
         assert_eq!(accounts[0].is_locked, true);
     }
 
@@ -200,12 +202,12 @@ mod tests {
         let mut engine = Engine::new(accounts);
 
         let txs = vec![
-            Ok(Transaction::new("deposit", 1, 1, 10.0)),
-            Ok(Transaction::new("deposit", 2, 2, 10.0)),
-            Ok(Transaction::new("deposit", 1, 3, 5.0)),
-            Ok(Transaction::new("dispute", 1, 1, 0.0)),
-            Ok(Transaction::new("withdrawal", 2, 4, 3.0)),
-            Ok(Transaction::new("chargeback", 1, 1, 0.0)),
+            Ok(Transaction::new("deposit", 1, 1, dec!(10.0))),
+            Ok(Transaction::new("deposit", 2, 2, dec!(10.0))),
+            Ok(Transaction::new("deposit", 1, 3, dec!(5.0))),
+            Ok(Transaction::new("dispute", 1, 1, dec!(0.0))),
+            Ok(Transaction::new("withdrawal", 2, 4, dec!(3.0))),
+            Ok(Transaction::new("chargeback", 1, 1, dec!(0.0))),
         ];
 
         engine.process_all(txs);
@@ -217,11 +219,11 @@ mod tests {
         let acc2 = accounts.iter().find(|a| a.client_id == 2).unwrap();
 
         assert_eq!(acc1.client_id, 1);
-        assert_eq!(acc1.available_amount, 5.0);
-        assert_eq!(acc1.held_amount, 0.0);
+        assert_eq!(acc1.available_amount, dec!(5.0));
+        assert_eq!(acc1.held_amount, dec!(0.0));
 
         assert_eq!(acc2.client_id, 2);
-        assert_eq!(acc2.available_amount, 7.0);
-        assert_eq!(acc2.held_amount, 0.0);
+        assert_eq!(acc2.available_amount, dec!(7.0));
+        assert_eq!(acc2.held_amount, dec!(0.0));
     }
 }

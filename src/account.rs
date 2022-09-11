@@ -1,21 +1,22 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
+use rust_decimal::Decimal;
 
 use crate::types::Account;
 
 pub trait Manager {
     fn ensure_account(&mut self, client_id: u16) -> anyhow::Result<()>;
 
-    fn deposit(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+    fn deposit(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()>;
 
-    fn withdraw(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+    fn withdraw(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()>;
 
-    fn withdraw_held(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+    fn withdraw_held(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()>;
 
-    fn hold(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+    fn hold(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()>;
 
-    fn release(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()>;
+    fn release(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()>;
 
     fn lock(&mut self, client_id: u16) -> anyhow::Result<()>;
 
@@ -45,7 +46,7 @@ impl Manager for SimpleManager {
         Ok(())
     }
 
-    fn deposit(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()> {
+    fn deposit(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
                 acc.available_amount += amount;
@@ -55,10 +56,10 @@ impl Manager for SimpleManager {
         }
     }
 
-    fn withdraw(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()> {
+    fn withdraw(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
-                if acc.available_amount - amount < 0.0 {
+                if acc.available_amount - amount < Decimal::ZERO {
                     return Err(anyhow!("Available amount is too low"));
                 }
 
@@ -69,10 +70,10 @@ impl Manager for SimpleManager {
         }
     }
 
-    fn withdraw_held(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()> {
+    fn withdraw_held(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
-                if acc.held_amount - amount < 0.0 {
+                if acc.held_amount - amount < Decimal::ZERO {
                     return Err(anyhow!("Held amount is too low"));
                 }
 
@@ -83,10 +84,10 @@ impl Manager for SimpleManager {
         }
     }
 
-    fn hold(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()> {
+    fn hold(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
-                if acc.available_amount - amount < 0.0 {
+                if acc.available_amount - amount < Decimal::ZERO {
                     return Err(anyhow!("Available amount is too low"));
                 }
 
@@ -98,10 +99,10 @@ impl Manager for SimpleManager {
         }
     }
 
-    fn release(&mut self, client_id: u16, amount: f32) -> anyhow::Result<()> {
+    fn release(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
-                if acc.held_amount - amount < 0.0 {
+                if acc.held_amount - amount < Decimal::ZERO {
                     return Err(anyhow!("Held amount is too low"));
                 }
 
@@ -137,6 +138,8 @@ impl Manager for SimpleManager {
 
 #[cfg(test)]
 mod tests {
+    use rust_decimal_macros::dec;
+
     use crate::types::Transaction;
 
     use super::*;
@@ -155,7 +158,7 @@ mod tests {
     #[test]
     fn deposit_returns_error_when_account_not_found() {
         let mut manager = SimpleManager::new();
-        let result = manager.deposit(1, 10.0);
+        let result = manager.deposit(1, dec!(10.0));
         assert!(result.is_err());
         assert_eq!(manager.accounts.len(), 0);
     }
@@ -163,7 +166,7 @@ mod tests {
     #[test]
     fn deposit_adds_to_available_amount() {
         let mut manager = SimpleManager::new();
-        let tx = Transaction::new("desposit", 1, 1, 10.0);
+        let tx = Transaction::new("desposit", 1, 1, dec!(10.0));
 
         assert!(manager.ensure_account(tx.client_id).is_ok());
 
@@ -177,13 +180,13 @@ mod tests {
         assert_eq!(acc.client_id, tx.client_id);
         assert_eq!(acc.is_locked, false);
         assert_eq!(acc.available_amount, tx.amount);
-        assert_eq!(acc.held_amount, 0.0);
+        assert_eq!(acc.held_amount, dec!(0.0));
     }
 
     #[test]
     fn withdraw_returns_error_when_account_not_found() {
         let mut manager = SimpleManager::new();
-        let result = manager.withdraw(1, 10.0);
+        let result = manager.withdraw(1, dec!(10.0));
         assert!(result.is_err());
     }
 
@@ -193,12 +196,12 @@ mod tests {
         let client_id = 1;
 
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.deposit(client_id, 10.0).is_ok());
-        assert!(manager.withdraw(client_id, 1.0).is_ok());
+        assert!(manager.deposit(client_id, dec!(10.0)).is_ok());
+        assert!(manager.withdraw(client_id, dec!(1.0)).is_ok());
 
         let acc = manager.accounts.get(&client_id).expect("Account not found");
 
-        assert_eq!(acc.available_amount, 9.0);
+        assert_eq!(acc.available_amount, dec!(9.0));
     }
 
     #[test]
@@ -207,18 +210,18 @@ mod tests {
         let client_id = 1;
 
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.deposit(client_id, 10.0).is_ok());
-        assert!(manager.withdraw(client_id, 11.0).is_err());
+        assert!(manager.deposit(client_id, dec!(10.0)).is_ok());
+        assert!(manager.withdraw(client_id, dec!(11.0)).is_err());
 
         let acc = manager.accounts.get(&client_id).expect("Account not found");
 
-        assert_eq!(acc.available_amount, 10.0);
+        assert_eq!(acc.available_amount, dec!(10.0));
     }
 
     #[test]
     fn hold_returns_error_when_account_not_found() {
         let mut manager = SimpleManager::new();
-        let result = manager.hold(1, 1.0);
+        let result = manager.hold(1, dec!(1.0));
         assert!(result.is_err());
     }
 
@@ -228,12 +231,12 @@ mod tests {
         let client_id = 1;
 
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.deposit(client_id, 10.0).is_ok());
-        assert!(manager.hold(1, 1.0).is_ok());
+        assert!(manager.deposit(client_id, dec!(10.0)).is_ok());
+        assert!(manager.hold(1, dec!(1.0)).is_ok());
 
         let acc = manager.accounts.get(&client_id).expect("Account not found");
-        assert_eq!(acc.available_amount, 9.0);
-        assert_eq!(acc.held_amount, 1.0);
+        assert_eq!(acc.available_amount, dec!(9.0));
+        assert_eq!(acc.held_amount, dec!(1.0));
     }
 
     #[test]
@@ -241,13 +244,13 @@ mod tests {
         let mut manager = SimpleManager::new();
         let client_id = 1;
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.hold(1, 1.0).is_err());
+        assert!(manager.hold(1, dec!(1.0)).is_err());
     }
 
     #[test]
     fn release_returns_error_when_account_not_found() {
         let mut manager = SimpleManager::new();
-        let result = manager.release(1, 1.0);
+        let result = manager.release(1, dec!(1.0));
         assert!(result.is_err());
     }
 
@@ -257,13 +260,13 @@ mod tests {
         let client_id = 1;
 
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.deposit(client_id, 10.0).is_ok());
-        assert!(manager.hold(client_id, 1.0).is_ok());
-        assert!(manager.release(client_id, 1.0).is_ok());
+        assert!(manager.deposit(client_id, dec!(10.0)).is_ok());
+        assert!(manager.hold(client_id, dec!(1.0)).is_ok());
+        assert!(manager.release(client_id, dec!(1.0)).is_ok());
 
         let acc = manager.accounts.get(&client_id).expect("Account not found");
-        assert_eq!(acc.available_amount, 10.0);
-        assert_eq!(acc.held_amount, 0.0);
+        assert_eq!(acc.available_amount, dec!(10.0));
+        assert_eq!(acc.held_amount, dec!(0.0));
     }
 
     #[test]
@@ -271,13 +274,13 @@ mod tests {
         let mut manager = SimpleManager::new();
         let client_id = 1;
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.release(client_id, 1.0).is_err());
+        assert!(manager.release(client_id, dec!(1.0)).is_err());
     }
 
     #[test]
     fn withdraw_held_returns_error_when_account_not_found() {
         let mut manager = SimpleManager::new();
-        let result = manager.withdraw_held(1, 10.0);
+        let result = manager.withdraw_held(1, dec!(10.0));
         assert!(result.is_err());
     }
 
@@ -287,14 +290,14 @@ mod tests {
         let client_id = 1;
 
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.deposit(client_id, 10.0).is_ok());
-        assert!(manager.hold(client_id, 1.0).is_ok());
-        assert!(manager.withdraw_held(client_id, 1.0).is_ok());
+        assert!(manager.deposit(client_id, dec!(10.0)).is_ok());
+        assert!(manager.hold(client_id, dec!(1.0)).is_ok());
+        assert!(manager.withdraw_held(client_id, dec!(1.0)).is_ok());
 
         let acc = manager.accounts.get(&client_id).expect("Account not found");
 
-        assert_eq!(acc.available_amount, 9.0);
-        assert_eq!(acc.held_amount, 0.0);
+        assert_eq!(acc.available_amount, dec!(9.0));
+        assert_eq!(acc.held_amount, dec!(0.0));
     }
 
     #[test]
@@ -303,14 +306,14 @@ mod tests {
         let client_id = 1;
 
         assert!(manager.ensure_account(client_id).is_ok());
-        assert!(manager.deposit(client_id, 10.0).is_ok());
-        assert!(manager.hold(client_id, 1.0).is_ok());
-        assert!(manager.withdraw_held(client_id, 2.0).is_err());
+        assert!(manager.deposit(client_id, dec!(10.0)).is_ok());
+        assert!(manager.hold(client_id, dec!(1.0)).is_ok());
+        assert!(manager.withdraw_held(client_id, dec!(2.0)).is_err());
 
         let acc = manager.accounts.get(&client_id).expect("Account not found");
 
-        assert_eq!(acc.available_amount, 9.0);
-        assert_eq!(acc.held_amount, 1.0);
+        assert_eq!(acc.available_amount, dec!(9.0));
+        assert_eq!(acc.held_amount, dec!(1.0));
     }
 
     #[test]
