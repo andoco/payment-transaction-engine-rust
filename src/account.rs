@@ -47,6 +47,8 @@ impl Manager for SimpleManager {
     }
 
     fn deposit(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
+        check_positive(amount)?;
+
         match self.accounts.get_mut(&client_id) {
             Some(acc) => match acc.available_amount.checked_add(amount) {
                 Some(new_amount) => {
@@ -62,6 +64,8 @@ impl Manager for SimpleManager {
     }
 
     fn withdraw(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
+        check_positive(amount)?;
+
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
                 if acc.available_amount - amount < Decimal::ZERO {
@@ -76,6 +80,8 @@ impl Manager for SimpleManager {
     }
 
     fn withdraw_held(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
+        check_positive(amount)?;
+
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
                 if acc.held_amount - amount < Decimal::ZERO {
@@ -90,6 +96,8 @@ impl Manager for SimpleManager {
     }
 
     fn hold(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
+        check_positive(amount)?;
+
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
                 if acc.available_amount - amount < Decimal::ZERO {
@@ -112,6 +120,8 @@ impl Manager for SimpleManager {
     }
 
     fn release(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
+        check_positive(amount)?;
+
         match self.accounts.get_mut(&client_id) {
             Some(acc) => {
                 if acc.held_amount - amount < Decimal::ZERO {
@@ -155,6 +165,13 @@ impl Manager for SimpleManager {
     }
 }
 
+fn check_positive(amount: Decimal) -> anyhow::Result<()> {
+    match amount.is_sign_positive() {
+        true => Ok(()),
+        false => Err(anyhow!("The amount is not positive")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rust_decimal_macros::dec;
@@ -162,6 +179,17 @@ mod tests {
     use crate::types::Transaction;
 
     use super::*;
+
+    #[test]
+    fn check_positive_for_positive_amount_is_ok() {
+        assert!(check_positive(dec!(1)).is_ok());
+        assert!(check_positive(dec!(0)).is_ok());
+    }
+
+    #[test]
+    fn check_positive_for_negative_amount_is_err() {
+        assert!(check_positive(dec!(-1)).is_err());
+    }
 
     #[test]
     fn ensure_account_creates_account() {
