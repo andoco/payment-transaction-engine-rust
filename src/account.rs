@@ -48,10 +48,15 @@ impl Manager for SimpleManager {
 
     fn deposit(&mut self, client_id: u16, amount: Decimal) -> anyhow::Result<()> {
         match self.accounts.get_mut(&client_id) {
-            Some(acc) => {
-                acc.available_amount += amount;
-                Ok(())
-            }
+            Some(acc) => match acc.available_amount.checked_add(amount) {
+                Some(new_amount) => {
+                    acc.available_amount = new_amount;
+                    Ok(())
+                }
+                None => Err(anyhow!(
+                    "Cannot deposit amount as the resulting available amount is too large"
+                )),
+            },
             None => Err(anyhow!("Account for client {} not found", client_id)),
         }
     }
@@ -181,6 +186,20 @@ mod tests {
         assert_eq!(acc.is_locked, false);
         assert_eq!(acc.available_amount, tx.amount);
         assert_eq!(acc.held_amount, dec!(0.0));
+    }
+
+    #[test]
+    fn deposit_returns_error_when_it_would_cause_overflow() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.deposit(client_id, Decimal::MAX).is_ok());
+        assert!(manager.deposit(client_id, dec!(1.0)).is_err());
+
+        let acc = manager.accounts.get(&1).expect("Account not found");
+
+        assert_eq!(acc.available_amount, Decimal::MAX);
     }
 
     #[test]
