@@ -18,7 +18,7 @@ fn main() -> anyhow::Result<()> {
 
     info!("Processing transaction file {}", args.transactions_file);
 
-    let file = std::fs::File::open(args.transactions_file).unwrap();
+    let file = std::fs::File::open(args.transactions_file)?;
 
     let mut csv_reader = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
