@@ -30,4 +30,5 @@ RUST_LOG=info cargo run -- transactions.csv > accounts.csv
 
 # Implementation Notes
 
-- The anyhow create is used for faster development but custom error types would be better.
+- The [anyhow](https://docs.rs/anyhow/latest/anyhow/) create is used for faster development but custom error types would be better.
+- Transactions are currently stored in `Engine` but ideally they'd be stored using a separate `TransactionManager` and `Engine` would be stateless.
