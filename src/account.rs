@@ -118,9 +118,16 @@ impl Manager for SimpleManager {
                     return Err(anyhow!("Held amount is too low"));
                 }
 
-                acc.held_amount -= amount;
-                acc.available_amount += amount;
-                Ok(())
+                match acc.available_amount.checked_add(amount) {
+                    Some(new_amount) => {
+                        acc.available_amount = new_amount;
+                        acc.held_amount -= amount;
+                        Ok(())
+                    }
+                    None => Err(anyhow!(
+                        "Cannot release amount as the resulting available amount is too large"
+                    )),
+                }
             }
             None => Err(anyhow!("Account for client {} not found", client_id)),
         }
@@ -318,6 +325,23 @@ mod tests {
         let client_id = 1;
         assert!(manager.ensure_account(client_id).is_ok());
         assert!(manager.release(client_id, dec!(1.0)).is_err());
+    }
+
+    #[test]
+    fn release_returns_error_when_it_would_cause_overflow() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.deposit(client_id, dec!(1)).is_ok());
+        assert!(manager.hold(client_id, dec!(1)).is_ok());
+        assert!(manager.deposit(client_id, Decimal::MAX).is_ok());
+        assert!(manager.release(client_id, dec!(1)).is_err());
+
+        let acc = manager.accounts.get(&1).expect("Account not found");
+
+        assert_eq!(acc.available_amount, Decimal::MAX);
+        assert_eq!(acc.held_amount, dec!(1));
     }
 
     #[test]
