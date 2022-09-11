@@ -96,9 +96,16 @@ impl Manager for SimpleManager {
                     return Err(anyhow!("Available amount is too low"));
                 }
 
-                acc.available_amount -= amount;
-                acc.held_amount += amount;
-                Ok(())
+                match acc.held_amount.checked_add(amount) {
+                    Some(new_amount) => {
+                        acc.available_amount -= amount;
+                        acc.held_amount = new_amount;
+                        Ok(())
+                    }
+                    None => Err(anyhow!(
+                        "Cannot hold amount as the resulting held amount is too large"
+                    )),
+                }
             }
             None => Err(anyhow!("Account for client {} not found", client_id)),
         }
@@ -264,6 +271,23 @@ mod tests {
         let client_id = 1;
         assert!(manager.ensure_account(client_id).is_ok());
         assert!(manager.hold(1, dec!(1.0)).is_err());
+    }
+
+    #[test]
+    fn hold_returns_error_when_it_would_cause_overflow() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.deposit(client_id, Decimal::MAX).is_ok());
+        assert!(manager.hold(client_id, Decimal::MAX).is_ok());
+        assert!(manager.deposit(client_id, dec!(1)).is_ok());
+        assert!(manager.hold(client_id, dec!(1)).is_err());
+
+        let acc = manager.accounts.get(&1).expect("Account not found");
+
+        assert_eq!(acc.available_amount, dec!(1));
+        assert_eq!(acc.held_amount, Decimal::MAX);
     }
 
     #[test]
