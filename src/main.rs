@@ -58,7 +58,7 @@ fn print_accounts(accounts: Vec<&Account>) {
             acc.available_amount.round_dp(4),
             acc.held_amount.round_dp(4),
             (acc.available_amount + acc.held_amount).round_dp(4),
-            false
+            acc.is_locked
         );
     }
 }
