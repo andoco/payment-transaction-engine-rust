@@ -19,6 +19,8 @@ pub trait Manager {
 
     fn lock(&mut self, client_id: u16) -> anyhow::Result<()>;
 
+    fn is_locked(&mut self, client_id: u16) -> anyhow::Result<bool>;
+
     fn all(&self) -> Vec<&Account>;
 }
 
@@ -117,6 +119,13 @@ impl Manager for SimpleManager {
                 acc.is_locked = true;
                 Ok(())
             }
+            None => Err(anyhow!("Account for client {} not found", client_id)),
+        }
+    }
+
+    fn is_locked(&mut self, client_id: u16) -> anyhow::Result<bool> {
+        match self.accounts.get_mut(&client_id) {
+            Some(acc) => Ok(acc.is_locked),
             None => Err(anyhow!("Account for client {} not found", client_id)),
         }
     }
@@ -321,5 +330,38 @@ mod tests {
         let acc = manager.accounts.get(&client_id).expect("Account not found");
 
         assert!(acc.is_locked);
+    }
+
+    #[test]
+    fn is_locked_returns_error_when_account_not_found() {
+        let mut manager = SimpleManager::new();
+        assert!(manager.is_locked(1).is_err());
+    }
+
+    #[test]
+    fn is_locked_returns_false_when_account_is_not_locked() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+
+        let result = manager.is_locked(client_id);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), false);
+    }
+
+    #[test]
+    fn is_locked_returns_true_when_account_is_locked() {
+        let mut manager = SimpleManager::new();
+        let client_id = 1;
+
+        assert!(manager.ensure_account(client_id).is_ok());
+        assert!(manager.lock(client_id).is_ok());
+
+        let result = manager.is_locked(client_id);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), true);
     }
 }
