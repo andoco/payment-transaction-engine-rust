@@ -22,6 +22,23 @@ impl<A: account::Manager> Engine<A> {
         }
     }
 
+    fn get_client_tx(&self, client_id: u16, tx_id: u32) -> anyhow::Result<Option<Transaction>> {
+        match self.transactions.get(&tx_id) {
+            Some(tx) => {
+                if tx.client_id == client_id {
+                    Ok(Some(tx.clone()))
+                } else {
+                    Err(anyhow!(
+                        "The transaction {} does not belong to client {}",
+                        tx_id,
+                        client_id
+                    ))
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
     fn process(&mut self, tx: &Transaction) -> anyhow::Result<()> {
         info!("Ensuring account exists for client id {}", tx.client_id);
         self.accounts.ensure_account(tx.client_id)?;
@@ -51,7 +68,7 @@ impl<A: account::Manager> Engine<A> {
                     tx.tx_id, tx.client_id
                 );
 
-                match self.transactions.get(&tx.tx_id) {
+                match self.get_client_tx(tx.client_id, tx.tx_id)? {
                     Some(tx) => self.accounts.hold(tx.client_id, tx.amount),
                     None => {
                         info!(
@@ -68,8 +85,8 @@ impl<A: account::Manager> Engine<A> {
                     tx.tx_id, tx.client_id
                 );
 
-                match self.transactions.get(&tx.tx_id) {
-                    Some(tx) => self.accounts.release(tx.client_id, tx.amount),
+                match self.get_client_tx(tx.client_id, tx.tx_id)? {
+                    Some(held_tx) => self.accounts.release(held_tx.client_id, held_tx.amount),
                     None => {
                         info!(
                             "Resolved transaction {} not found so will ignore for client id {}",
@@ -85,7 +102,7 @@ impl<A: account::Manager> Engine<A> {
                     tx.tx_id, tx.client_id
                 );
 
-                match self.transactions.get(&tx.tx_id) {
+                match self.get_client_tx(tx.client_id, tx.tx_id)? {
                     Some(tx) => {
                         self.accounts.withdraw_held(tx.client_id, tx.amount)?;
                         self.accounts.lock(tx.client_id)?;
