@@ -23,3 +23,7 @@ Run with logging:
 ```sh
 RUST_LOG=info cargo run -- transactions.csv > accounts.csv
 ```
+
+# Implementation Notes
+
+- The anyhow create is used for faster development but custom error types would be better.
