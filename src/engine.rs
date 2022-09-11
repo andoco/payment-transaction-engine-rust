@@ -26,6 +26,14 @@ impl<A: account::Manager> Engine<A> {
         info!("Ensuring account exists for client id {}", tx.client_id);
         self.accounts.ensure_account(tx.client_id)?;
 
+        if self.accounts.is_locked(tx.client_id)? {
+            info!(
+                "Account is locked so transaction will not be processed for client id {}",
+                tx.client_id
+            );
+            return Ok(());
+        }
+
         match tx.tx_type.as_str() {
             "deposit" => {
                 info!("Depositing amount for client id {}", tx.client_id);
@@ -172,6 +180,7 @@ mod tests {
             Ok(Transaction::new("deposit", 1, 2, 5.0)),
             Ok(Transaction::new("dispute", 1, 1, 0.0)),
             Ok(Transaction::new("chargeback", 1, 1, 0.0)),
+            Ok(Transaction::new("withdrawal", 1, 3, 1.0)),
         ];
 
         engine.process_all(txs);
