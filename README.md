@@ -32,3 +32,5 @@ RUST_LOG=info cargo run -- transactions.csv > accounts.csv
 
 - The [anyhow](https://docs.rs/anyhow/latest/anyhow/) create is used for faster development but custom error types would be better.
 - Transactions are currently stored in `Engine` but ideally they'd be stored using a separate `TransactionManager` and `Engine` would be stateless.
+- It is possible to withdraw funds before raising a dispute, which means enough funds might not be available to be held.
+  - A withdrawal delay could be implemented to help protect against this and allow more time for disputes.
