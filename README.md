@@ -28,6 +28,17 @@ Run with logging:
 RUST_LOG=info cargo run -- transactions.csv > accounts.csv
 ```
 
+Example transaction file:
+
+`transactions.csv`
+
+```
+type, client, tx, amount
+deposit, 1, 1, 10.0
+deposit, 1, 2, 5.0
+withdrawal, 1, 3, 3.0
+```
+
 # Implementation Notes
 
 - The [anyhow](https://docs.rs/anyhow/latest/anyhow/) create is used for faster development but custom error types would be better.
