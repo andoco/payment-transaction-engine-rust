@@ -126,13 +126,14 @@ impl<A: account::Manager> Engine<A> {
         transactions: impl IntoIterator<Item = anyhow::Result<Transaction>>,
     ) {
         for result in transactions {
-            info!("Processing transaction: {:?}", result);
-
             match result {
-                Ok(tx) => match self.process(&tx) {
-                    Ok(()) => info!("Transaction complete"),
-                    Err(err) => error!("Transaction failed: {}", err),
-                },
+                Ok(tx) => {
+                    info!("Processing transaction: {:?}", tx);
+                    match self.process(&tx) {
+                        Ok(()) => info!("Transaction complete"),
+                        Err(err) => error!("Transaction failed: {}", err),
+                    }
+                }
                 Err(err) => error!("Encountered corrupt transaction: {}", err),
             }
         }
