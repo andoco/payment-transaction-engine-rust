@@ -12,15 +12,15 @@ cargo build
 
 Test:
 
-````sh
+```sh
 cargo test
-`
+```
 
 Run:
 
 ```sh
 cargo run -- transactions.csv > accounts.csv
-````
+```
 
 Run with logging:
 
